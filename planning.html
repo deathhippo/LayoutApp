@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planning Overview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px;}
+        ::-webkit-scrollbar-track { background: #374151; } /* gray-700 */
+        ::-webkit-scrollbar-thumb { background: #6b7280; border-radius: 3px; } /* gray-500 */
+        ::-webkit-scrollbar-thumb:hover { background: #9ca3af; } /* gray-400 */
+
+        /* Sticky header for table */
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Priority colors */
+        .priority-Urgent, .status-Paused, .status-Construction-Error { background-color: #ef4444; color: white; } /* red-500 */
+        .priority-High, .status-Missing-Parts { background-color: #f97316; color: white; } /* orange-500 */
+        .priority-Normal { background-color: #3b82f6; color: white; } /* blue-500 */
+        .priority-Low { background-color: #4b5563; color: white; } /* gray-600 */
+
+        /* --- NEW STYLES FOR SIDE PANEL --- */
+        #details-panel {
+            transition: transform 0.3s ease-in-out;
+            z-index: 150;
+            display: flex;
+            flex-direction: column;
+        }
+        #panel-overlay {
+            transition: opacity 0.3s ease-in-out;
+            z-index: 140;
+        }
+        #panel-content::-webkit-scrollbar { width: 4px; }
+        #panel-content::-webkit-scrollbar-track { background: #1f2937; }
+        #panel-content::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
+        
+        /* --- NEW: STYLES FOR UPDATE DOT --- */
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.3;
+                transform: scale(0.9);
+            }
+        }
+        .new-info-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #4ade80; /* green-400 */
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+            animation: pulse 1.5s infinite;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+        /* --- END NEW STYLES --- */
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+    <div class="container mx-auto p-4 max-w-7xl">
+        <header class="mb-6 flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-blue-400">Project Planning Overview</h1>
+            <div class="text-sm text-gray-400">
+                Last Updated: <span id="last-updated">Never</span>
+            </div>
+        </header>
+
+        <div class="overflow-x-auto bg-gray-800 rounded-lg shadow-md border border-gray-700 max-h-[80vh]">
+            <table class="w-full text-sm text-left text-gray-300 table-auto">
+                <thead class="text-xs text-gray-400 uppercase bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-4 py-3 whitespace-nowrap">Project Name</th>
+                        <th scope="col" class="px-4 py-3 whitespace-nowrap">Worker(s)</th>
+                        <th scope="col" class="px-4 py-3 text-center whitespace-nowrap">Priority</th>
+                        <th scope="col" class="px-4 py-3 text-center whitespace-nowrap">Status</th>
+                        <th scope="col" class="px-4 py-3 text-center whitespace-nowrap">DNI Status (%)</th>
+                        <th scope="col" class="px-4 py-3 whitespace-nowrap">Electrification</th>
+                        <th scope="col" class="px-4 py-3 whitespace-nowrap">Control</th>
+                        <th scope="col" class="px-4 py-3 text-center whitespace-nowrap">Packaging</th>
+                        <th scope="col" class="px-4 py-3 text-center whitespace-nowrap">Notes</th>
+                        <th scope="col" class="px-4 py-3 text-center whitespace-nowrap">Photos</th>
+                    </tr>
+                </thead>
+                <tbody id="planning-table-body" class="divide-y divide-gray-700">
+                    <tr>
+                        <td colspan="10" class="text-center p-8 text-gray-500">
+                            Loading project data...
+                        </td>
+                    </tr>
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="panel-overlay" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm opacity-0 pointer-events-none"></div>
+
+    <div id="details-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-gray-900 shadow-2xl transform translate-x-full border-l border-gray-700">
+        <div class="p-3 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+            <h2 id="panel-title" class="text-lg font-bold text-indigo-400 truncate">Details</h2>
+            <button id="panel-close-btn" class="text-2xl text-gray-500 hover:text-white">&times;</button>
+        </div>
+        <div id="panel-content" class="p-4 overflow-y-auto flex-grow">
+            <p class="text-gray-400">Loading details...</p>
+        </div>
+    </div>
+
+    <div id="image-viewer-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[250] hidden items-center justify-center p-4">
+        <img id="fullscreen-image" src="" class="max-w-full max-h-full">
+        <button id="image-viewer-close" class="absolute top-4 right-4 text-white text-4xl">&times;</button>
+    </div>
+
+
+    <script>
+        const tableBody = document.getElementById('planning-table-body');
+        const lastUpdatedSpan = document.getElementById('last-updated');
+        
+        // --- NEW: Panel and Modal Elements ---
+        const detailsPanel = document.getElementById('details-panel');
+        const panelOverlay = document.getElementById('panel-overlay');
+        const panelTitle = document.getElementById('panel-title');
+        const panelContent = document.getElementById('panel-content');
+        const panelCloseBtn = document.getElementById('panel-close-btn');
+        const imageViewerModal = document.getElementById('image-viewer-modal');
+        const fullscreenImage = document.getElementById('fullscreen-image');
+        const imageViewerCloseBtn = document.getElementById('image-viewer-close');
+        // --- END NEW ---
+
+        let refreshInterval;
+
+        // --- NEW: LocalStorage for Update Tracking ---
+        let lastViewedTimestamps = JSON.parse(localStorage.getItem('projectLastViewed')) || {};
+        function saveLastViewed() {
+            localStorage.setItem('projectLastViewed', JSON.stringify(lastViewedTimestamps));
+        }
+        // --- END NEW ---
+
+
+        // --- NEW: API Fetch Utility ---
+        async function fetchApi(endpoint, options = {}) {
+            if (!options.method || options.method.toUpperCase() === 'GET') {
+                options.cache = 'no-store';
+            }
+            try {
+                const response = await fetch(endpoint, options);
+                if (!response.ok) {
+                    // Check if response is JSON, otherwise just use status text
+                    let errorBody = { message: `HTTP Error ${response.status}: ${response.statusText}` };
+                    try {
+                        errorBody = await response.json();
+                    } catch (jsonError) {
+                        // Ignore if response wasn't JSON
+                    }
+
+                    if (response.status === 401) {
+                        // Auth error, redirect to login
+                        window.location.href = '/'; 
+                    }
+                    // Throw the more detailed error message if available
+                    throw new Error(errorBody.message || `API request failed`);
+                }
+                // Check if response has content before trying to parse JSON
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json();
+                } else {
+                    return response.text(); // Or handle non-JSON responses as needed
+                }
+            } catch(e) {
+                console.error("API Fetch Error:", endpoint, e); // Log the endpoint that failed
+                throw e; // Re-throw the error to be caught by the caller
+            }
+        }
+        // --- END NEW ---
+
+        function getPriorityClass(priority) {
+            switch (priority) {
+                case 'Urgent': return 'priority-Urgent';
+                case 'High': return 'priority-High';
+                case 'Normal': return 'priority-Normal';
+                default: return 'priority-Low'; // Default to Low
+            }
+        }
+        
+        function getStatusColor(statusString) {
+            if (statusString.startsWith('Completed')) return 'text-green-400';
+            if (statusString === 'Ready') return 'text-yellow-400';
+            return 'text-gray-400'; // Pending
+        }
+
+        function getPauseStatusHtml(pauseStatus) {
+            if (!pauseStatus) {
+                return '<td class="px-4 py-2 text-center text-gray-400">-</td>';
+            }
+            
+            let statusClass = '';
+            let statusText = pauseStatus;
+
+            if (pauseStatus === 'Missing Parts') {
+                statusClass = 'status-Missing-Parts';
+            } else if (pauseStatus === 'Construction Error') {
+                statusClass = 'status-Construction-Error';
+                statusText = 'Constr. Error'; // Shorter text for table
+            } else if (pauseStatus === 'Paused') {
+                statusClass = 'status-Paused';
+            }
+
+            return `
+                <td class="px-4 py-2 text-center">
+                    <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${statusClass}">
+                        ${statusText}
+                    </span>
+                </td>`;
+        }
+
+        function renderTable(data) {
+            tableBody.innerHTML = ''; // Clear previous data or loading state
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-gray-500">No project data found.</td></tr>`;
+                return;
+            }
+
+            data.forEach(project => {
+                const row = tableBody.insertRow();
+                row.className = 'hover:bg-gray-700 transition-colors duration-150';
+
+                // --- NEW: Check for updates ---
+                const lastUpdated = project.last_updated_at;
+                const lastViewed = lastViewedTimestamps[project.name];
+                let newInfoHtml = '';
+                if (lastUpdated && (!lastViewed || new Date(lastUpdated) > new Date(lastViewed))) {
+                    newInfoHtml = `<span class="new-info-dot" title="Updated: ${new Date(lastUpdated).toLocaleString()}"></span>`;
+                }
+                // --- END NEW ---
+
+                row.innerHTML = `
+                    <td class="px-4 py-2 font-medium whitespace-nowrap">
+                        <div class="flex items-center">
+                            <a href="#" class="project-link text-blue-400 hover:text-blue-300 hover:underline" data-project-id="${project.name}">
+                                ${project.name}
+                            </a>
+                            ${newInfoHtml}
+                        </div>
+                    </td>
+                    <td class="px-4 py-2 whitespace-nowrap">${project.worker || 'N/A'}</td>
+                    <td class="px-4 py-2 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${getPriorityClass(project.priority || 'Low')}">
+                            ${project.priority || 'Low'}
+                        </span>
+                    </td>
+                    ${getPauseStatusHtml(project.pause_status)}
+                    <td class="px-4 py-2 text-center">${project.status_percentage}%</td>
+                    <td class="px-4 py-2 whitespace-nowrap ${getStatusColor(project.electrification_status)}">${project.electrification_status}</td>
+                    <td class="px-4 py-2 whitespace-nowrap ${getStatusColor(project.control_status)}">${project.control_status}</td>
+                    <td class="px-4 py-2 text-center">${project.packaging_status === 'Ready' ? '<span class="text-orange-400">Ready</span>' : '<span class="text-gray-400">Pending</span>'}</td>
+                    <td class="px-4 py-2 text-center">${project.has_notes ? '✔️' : '❌'}</td>
+                    <td class="px-4 py-2 text-center">${project.photo_count > 0 ? project.photo_count : '0'}</td>
+                `;
+            });
+        }
+
+        async function fetchData() {
+            try {
+                // Use the new fetchApi function
+                const planningData = await fetchApi('/api/planning_data');
+                renderTable(planningData);
+                lastUpdatedSpan.textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error("Error fetching planning data:", error);
+                tableBody.innerHTML = `<tr><td colspan="10" class="text-center p-8 text-red-500">Error loading data: ${error.message}</td></tr>`;
+                lastUpdatedSpan.textContent = `Error at ${new Date().toLocaleTimeString()}`;
+            }
+        }
+
+        // --- NEW: Panel Control Functions ---
+
+        // Renders the content inside the side panel
+        function renderPanelContent(notesDetails, photos, workOrders, missingParts, inventoryStatus) {
+            const notes = notesDetails.notes || {};
+            
+            const photosHtml = photos.length > 0 ? photos.map(p => `
+                <div class="relative group">
+                    <img src="${p.url}" data-filename="${p.filename}" class="w-full h-24 object-cover rounded-md cursor-pointer gallery-photo">
+                </div>`).join('') : '<p class="text-xs text-gray-400 col-span-3">No photos uploaded.</p>';
+            
+            const missingPartsHtml = missingParts.length > 0 ? 
+                missingParts.map(part => `<div class="truncate text-red-400" title="${part.description} (${part.item_no})">- ${part.description} (${part.item_no})</div>`).join('') : 
+                '<p class="text-gray-400">No missing parts.</p>';
+
+            // --- MODIFIED: HTML for Work Orders (DNIs) with inventory check and status dots ---
+            const workOrdersHtml = workOrders.length > 0 ? 
+                workOrders.map(wo => {
+                    const safeInventoryStatus = inventoryStatus || {}; 
+                    const invStatus = safeInventoryStatus[wo.work_order_no]; 
+                    
+                    let dotClass = 'bg-gray-500'; // Default: Unknown inventory
+                    let textClass = 'text-gray-300';
+                    
+                    if (wo.is_completed) { // Highest priority: Show completed
+                        dotClass = 'bg-green-500';
+                        textClass = 'text-green-400 line-through';
+                    } else if (invStatus && invStatus.can_be_made) { // If not completed, check if can be made
+                        dotClass = 'bg-green-500'; // Green: Can be made
+                        textClass = 'text-green-300';
+                    } else if (invStatus && !invStatus.can_be_made) { // If not completed and cannot be made
+                        dotClass = 'bg-red-500'; // Red: Cannot be made
+                        textClass = 'text-red-400';
+                    }
+                    // If invStatus is undefined, it stays gray
+
+                    return `
+                    <div class="flex items-center">
+                        <span class="w-2.5 h-2.5 ${dotClass} rounded-full mr-2 flex-shrink-0"></span>
+                        <input type="checkbox" id="panel-dni-${wo.work_order_no}" ${wo.is_completed ? 'checked' : ''} disabled class="h-4 w-4 rounded mr-2 text-blue-600 focus:ring-blue-500 border-gray-600 bg-gray-700">
+                        <label for="panel-dni-${wo.work_order_no}" class="truncate ${textClass}">
+                            ${wo.description}
+                        </label>
+                    </div>`;
+                }).join('') : 
+                '<p class="text-gray-400">No work orders.</p>';
+            // --- END MODIFIED ---
+
+            panelContent.innerHTML = `
+                <div class="space-y-4">
+                    <div class="bg-gray-800 p-3 rounded-lg">
+                        <h3 class="font-bold text-base text-indigo-300 mb-2">Photos (${photos.length})</h3>
+                        <div id="photos-gallery" class="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">${photosHtml}</div>
+                    </div>
+
+                    <div class="bg-gray-800 p-3 rounded-lg">
+                        <h3 class="font-bold text-base text-indigo-300 mb-2">Missing Parts (${missingParts.length})</h3>
+                        <div class="text-xs space-y-1 max-h-32 overflow-y-auto pr-2">${missingPartsHtml}</div>
+                    </div>
+
+                    <div class="bg-gray-800 p-3 rounded-lg">
+                        <h3 class="font-bold text-base text-indigo-300 mb-2">Work Orders (DNI) (${workOrders.length})</h3>
+                        <div id="dni-list" class="text-xs space-y-1 max-h-32 overflow-y-auto">${workOrdersHtml}</div>
+                    </div>
+
+                    <div class="bg-gray-800 p-3 rounded-lg">
+                        <h3 class="font-bold text-base text-indigo-300 mb-2">Notes</h3>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block font-bold mb-1 text-xs">General</label>
+                                <textarea readonly class="w-full bg-gray-700 rounded p-1.5 text-xs" rows="4">${notes.notes || ''}</textarea>
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1 text-xs">Electrification</label>
+                                <textarea readonly class="w-full bg-gray-700 rounded p-1.5 text-xs" rows="4">${notes.electrification_notes || ''}</textarea>
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-1 text-xs">Control</label>
+                                <textarea readonly class="w-full bg-gray-700 rounded p-1.5 text-xs" rows="4">${notes.control_notes || ''}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // Fetches data and shows the panel
+        async function showProjectDetails(projectId) {
+            // --- NEW: Mark as viewed and remove dot ---
+            lastViewedTimestamps[projectId] = new Date().toISOString();
+            saveLastViewed();
+            
+            const link = document.querySelector(`a[data-project-id="${projectId}"]`);
+            if (link) {
+                const dot = link.parentElement.querySelector('.new-info-dot');
+                if (dot) dot.remove();
+            }
+            // --- END NEW ---
+
+            panelTitle.textContent = projectId;
+            panelContent.innerHTML = `<p class="text-gray-400">Loading details...</p>`; // Show loading message
+            detailsPanel.classList.remove('translate-x-full');
+            panelOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            
+            try {
+                // Fetch all data concurrently
+                const [extraDetails, photos, workOrders, missingParts, inventoryStatus] = await Promise.all([
+                    fetchApi(`/api/project/${projectId}/extra_details`),
+                    fetchApi(`/api/project/${projectId}/photos`),
+                    fetchApi(`/api/project/${projectId}/work_orders`),
+                    fetchApi(`/api/project/${projectId}/missing_parts`),
+                    fetchApi(`/api/project_inventory_status/${projectId}`) // Fetch inventory status
+                ]);
+                // Render the panel content with all fetched data
+                renderPanelContent(extraDetails, photos, workOrders, missingParts, inventoryStatus);
+            } catch (error) {
+                // Display a user-friendly error message in the panel
+                console.error("Error fetching project details:", error); // Log the detailed error
+                panelContent.innerHTML = `<p class="text-red-500">Error loading details: ${error.message}</p>`;
+            }
+        }
+
+        // Hides the panel
+        function hideProjectDetails() {
+            detailsPanel.classList.add('translate-x-full');
+            panelOverlay.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        // Event listener for clicks on project names
+        tableBody.addEventListener('click', (e) => {
+            const link = e.target.closest('a.project-link');
+            if (link) {
+                e.preventDefault();
+                const projectId = link.dataset.projectId;
+                showProjectDetails(projectId);
+            }
+        });
+
+        // Event listener for clicks on photos in the panel
+        panelContent.addEventListener('click', (e) => {
+            const img = e.target.closest('img.gallery-photo');
+            if (img) {
+                fullscreenImage.src = img.src;
+                imageViewerModal.classList.remove('hidden');
+                imageViewerModal.classList.add('flex');
+            }
+        });
+
+        // Listeners to close the panel and image modal
+        panelCloseBtn.addEventListener('click', hideProjectDetails);
+        panelOverlay.addEventListener('click', hideProjectDetails);
+        imageViewerCloseBtn.addEventListener('click', () => {
+            imageViewerModal.classList.add('hidden');
+            imageViewerModal.classList.remove('flex');
+        });
+        // --- END NEW ---
+
+
+        // Initial fetch and set interval for refreshing
+        fetchData();
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = setInterval(fetchData, 15000); // Refresh every 15 seconds
+
+    </script>
+</body>
+</html>

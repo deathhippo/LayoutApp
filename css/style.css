@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+html, body {
+    font-family: 'Inter', sans-serif;
+    overscroll-behavior-y: contain;
+}
+canvas { touch-action: none; }
+/* Make the panel content a flex container to support a sticky footer */
+#details-panel {
+    /* display: flex; (REMOVED) */
+    /* flex-direction: column; (REMOVED) */
+}
+#panel-content {
+    /* flex-grow: 1; (REMOVED) */
+    /* overflow-y: auto; (REMOVED) */
+}
+#panel-content::-webkit-scrollbar { width: 4px; }
+#panel-content::-webkit-scrollbar-track { background: #1f2937; }
+#panel-content::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
+.add-mode-active #layout-canvas { cursor: crosshair !important; }
+.add-mode-active #add-project-btn { background-color: #f97316 !important; } /* Orange */
+.remove-mode-active #layout-canvas { cursor: default !important; } /* Change cursor for remove */
+.remove-mode-active #remove-project-btn { background-color: #ef4444 !important; } /* Red */
+/* --- NEW STYLES --- */
+.move-mode-active #layout-canvas { cursor: grab !important; }
+.move-mode-active #move-project-btn { background-color: #3b82f6 !important; } /* Blue */
+/* --- END NEW STYLES --- */
+    /* Style project item overlays in remove mode */
+.project-item-overlay {
+    position: absolute;
+    background-color: rgba(239, 68, 68, 0.3); /* Red tint */
+    border: 2px dashed #ef4444; /* Red dashed border */
+    cursor: pointer;
+    pointer-events: auto; /* Make overlay clickable ONLY when active */
+    border-radius: 6px; /* Match thumbnail */
+    box-sizing: border-box; /* Include border in size */
+}
+/* Style for Logout Button */
+#logout-btn {
+    /* Example SVG icon - replace with your preferred icon or text */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-log-out'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'%3E%3C/path%3E%3Cpolyline points='16 17 21 12 16 7'%3E%3C/polyline%3E%3Cline x1='21' y1='12' x2='9' y2='12'%3E%3C/line%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 60%; /* Adjust size as needed */
+}

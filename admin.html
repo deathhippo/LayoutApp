@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Panel</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            color: #111;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f9f9f9;
+        }
+        tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+        .action-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-right: 5px;
+        }
+        .action-btn:hover {
+            background-color: #2980b9;
+        }
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+        form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        form div {
+            display: flex;
+            flex-direction: column;
+        }
+        form label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        form input, form select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .form-actions {
+            grid-column: 1 / -1; /* Span both columns */
+            text-align: right;
+        }
+        .submit-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+        }
+        .submit-btn:hover {
+            background-color: #27ae60;
+        }
+        #message-area {
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 4px;
+            display: none; /* Hidden by default */
+        }
+        #message-area.success {
+            background-color: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        #message-area.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        /* Basic modal styles for editing */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: black;
+            text-decoration: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Admin Control Panel</h1>
+        
+        <h2>Create New User</h2>
+        <form id="create-user-form">
+            <div>
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div>
+                <label for="role">Role:</label>
+                <select id="role" name="role">
+                    <option value="viewer">Viewer</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="submit-btn">Create User</button>
+            </div>
+        </form>
+        <div id="message-area"></div>
+
+        <h2>Manage Existing Users</h2>
+        <table id="user-list-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="user-list-body">
+                </tbody>
+        </table>
+    </div>
+
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>Edit User</h2>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id" name="id">
+                
+                <div>
+                    <label for="edit-username">Username:</label>
+                    <input type="text" id="edit-username" name="username" readonly disabled>
+                </div>
+                
+                <div>
+                    <label for="edit-role">Role:</label>
+                    <select id="edit-role" name="role">
+                        <option value="viewer">Viewer</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="edit-password">New Password (optional):</label>
+                    <input type="password" id="edit-password" name="password" placeholder="Leave blank to keep unchanged">
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="submit-btn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        const userListBody = document.getElementById('user-list-body');
+        const createUserForm = document.getElementById('create-user-form');
+        const messageArea = document.getElementById('message-area');
+        
+        // Modal elements
+        const editModal = document.getElementById('edit-modal');
+        const editUserForm = document.getElementById('edit-user-form');
+        const editUserId = document.getElementById('edit-user-id');
+        const editUsername = document.getElementById('edit-username');
+        const editRole = document.getElementById('edit-role');
+        const editPassword = document.getElementById('edit-password');
+
+
+        // --- 1. Function to show success/error messages ---
+        function showMessage(type, text) {
+            messageArea.className = type; // 'success' or 'error'
+            messageArea.textContent = text;
+            // Auto-hide message after 5 seconds
+            setTimeout(() => {
+                messageArea.className = '';
+                messageArea.textContent = '';
+            }, 5000);
+        }
+
+        // --- 2. Function to fetch and display all users ---
+        async function fetchUsers() {
+            try {
+                const response = await fetch('/api/admin/users');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const users = await response.json();
+                renderUsers(users);
+
+            } catch (error) {
+                console.error('Error fetching users:', error);
+                showMessage('error', `Failed to load users: ${error.message}`);
+            }
+        }
+
+        // --- 3. Function to render the user list in the table ---
+        function renderUsers(users) {
+            userListBody.innerHTML = ''; // Clear existing list
+            
+            if (users.length === 0) {
+                userListBody.innerHTML = '<tr><td colspan="4">No users found.</td></tr>';
+                return;
+            }
+
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.role}</td>
+                    <td>
+                        <button class="action-btn" onclick="openEditModal(${user.id}, '${user.username}', '${user.role}')">Edit</button>
+                        <button class="delete-btn" onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>
+                    </td>
+                `;
+                userListBody.appendChild(row);
+            });
+        }
+
+        // --- 4. Function to handle new user creation ---
+        createUserForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Stop form from submitting normally
+            
+            const formData = new FormData(createUserForm);
+            const data = Object.fromEntries(formData.entries());
+
+            // Simple validation
+            if (!data.username || !data.password) {
+                showMessage('error', 'Username and Password are required.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Failed to create user.');
+                }
+
+                showMessage('success', `User '${data.username}' created successfully.`);
+                createUserForm.reset(); // Clear the form
+                fetchUsers(); // Refresh the user list
+
+            } catch (error) {
+                console.error('Error creating user:', error);
+                showMessage('error', error.message);
+            }
+        });
+
+        // --- 5. Function to delete a user (called from button) ---
+        async function deleteUser(id, username) {
+            if (!confirm(`Are you sure you want to delete the user '${username}'? This cannot be undone.`)) {
+                return; // User cancelled
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Failed to delete user.');
+                }
+                
+                showMessage('success', result.message);
+                fetchUsers(); // Refresh the user list
+
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                showMessage('error', error.message);
+            }
+        }
+
+        // --- 6. Modal Functions (NEW) ---
+        function openEditModal(id, username, role) {
+            editUserId.value = id;
+            editUsername.value = username;
+            editRole.value = role;
+            editPassword.value = ''; // Clear password field
+            editModal.style.display = 'block';
+        }
+
+        function closeModal() {
+            editModal.style.display = 'none';
+        }
+
+        // Close modal if user clicks outside of it
+        window.onclick = function(event) {
+            if (event.target == editModal) {
+                closeModal();
+            }
+        }
+        
+        // --- 7. Handle Edit Form Submission (NEW) ---
+        editUserForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const id = editUserId.value;
+            const data = {
+                role: editRole.value,
+                password: editPassword.value || null // Send null if blank
+            };
+
+            // Don't send an empty password field, send 'null' or just omit it
+            if (!data.password) {
+                delete data.password; // Server will know not to update it
+            }
+
+            try {
+                const response = await fetch(`/api/admin/users/${id}`, {
+                    method: 'PUT', // We will need to create this API endpoint
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.message);
+
+                showMessage('success', `User (ID: ${id}) updated successfully.`);
+                closeModal();
+                fetchUsers(); // Refresh list
+
+            } catch (error) {
+                console.error('Error updating user:', error);
+                // Show error inside the modal? For now, use main message area
+                showMessage('error', `Failed to update user: ${error.message}`);
+            }
+        });
+
+
+        // --- 8. Initial Load ---
+        // Fetch users when the page loads
+        document.addEventListener('DOMContentLoaded', fetchUsers);
+    </script>
+</body>
+</html>

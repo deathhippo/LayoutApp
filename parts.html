@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Parts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        html, body { font-family: 'Inter', sans-serif; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #4b5563; padding: 8px 12px; text-align: left; }
+        th { background-color: #374151; }
+        tr:nth-child(even) { background-color: #1f2937; }
+        
+        /* Tab Styles */
+        .tab-button {
+            padding: 8px 16px;
+            font-weight: 600;
+            border-radius: 6px 6px 0 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            border-bottom: 0;
+        }
+        .active-tab {
+            background-color: #374151; /* th background */
+            border-color: #4b5563;
+            color: #d1d5db; /* gray-300 */
+        }
+        .inactive-tab {
+            background-color: #1f2937; /* tr background */
+            color: #9ca3af; /* gray-400 */
+            border-color: #1f2937;
+        }
+        .inactive-tab:hover {
+            background-color: #374151;
+            color: #d1d5db;
+        }
+    </style>
+</head>
+<body class="bg-gray-800 text-gray-200 p-6">
+
+    <div class="max-w-4xl mx-auto bg-gray-900 rounded-lg shadow-lg border border-gray-700">
+        <div class="flex justify-between items-center p-6 border-b border-gray-700">
+            <h1 class="text-2xl font-bold text-indigo-400">Parts for Project: <span id="project-id">Loading...</span></h1>
+            <button onclick="window.close();" class="text-sm bg-gray-600 hover:bg-gray-700 text-white font-medium py-1 px-3 rounded-md transition-colors">&times; Close</button>
+        </div>
+
+        <div class="px-6 pt-6">
+            <input type="text" id="search-input" placeholder="Search parts by item, description, or location..." class="w-full bg-gray-700 text-white border border-gray-600 rounded-md py-2 px-3 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div class="flex px-6 -mb-px pt-4">
+            <button id="missing-tab" class="tab-button active-tab">Missing Parts</button>
+            <button id="arrived-tab" class="tab-button inactive-tab">Arrived Parts</button>
+        </div>
+
+        <div class="p-6">
+            <div id="missing-parts-content">
+                <div id="loading-state-missing" class="text-center text-gray-400 py-4">Loading missing parts...</div>
+                <div id="error-state-missing" class="hidden text-center text-red-500 py-4"></div>
+                <div id="parts-table-container-missing" class="hidden overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item No.</th>
+                                <th>Description</th>
+                                <th>Location</th>
+                                <th>Quantity Needed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="parts-list-missing"></tbody>
+                    </table>
+                    <p id="no-parts-message-missing" class="hidden text-center text-gray-400 py-4">No missing parts found for this project.</p>
+                    <p id="no-search-results-missing" class="hidden text-center text-gray-400 py-4">No search results found.</p>
+                </div>
+            </div>
+
+            <div id="arrived-parts-content" class="hidden">
+                <div id="loading-state-arrived" class="text-center text-gray-400 py-4">Loading arrived parts...</div>
+                <div id="error-state-arrived" class="hidden text-center text-red-500 py-4"></div>
+                <div id="parts-table-container-arrived" class="hidden overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item No.</th>
+                                <th>Description</th>
+                                <th>Location</th>
+                                <th>Quantity Arrived</th>
+                            </tr>
+                        </thead>
+                        <tbody id="parts-list-arrived"></tbody>
+                    </table>
+                    <p id="no-parts-message-arrived" class="hidden text-center text-gray-400 py-4">No arrived parts found for this project.</p>
+                    <p id="no-search-results-arrived" class="hidden text-center text-gray-400 py-4">No search results found.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- NEW: Filter Function ---
+        function filterActiveTable() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+
+            // Determine which tab is active
+            const missingContent = document.getElementById('missing-parts-content');
+            const isMissingTabActive = !missingContent.classList.contains('hidden');
+
+            const activeListBody = document.getElementById(isMissingTabActive ? 'parts-list-missing' : 'parts-list-arrived');
+            const activeNoResultsMsg = document.getElementById(isMissingTabActive ? 'no-search-results-missing' : 'no-search-results-arrived');
+            const originalNoPartsMsg = document.getElementById(isMissingTabActive ? 'no-parts-message-missing' : 'no-parts-message-arrived');
+
+            // Don't filter if the table is already empty (no parts from API)
+            if (!originalNoPartsMsg.classList.contains('hidden')) {
+                activeNoResultsMsg.classList.add('hidden'); // Ensure search message is hidden
+                return;
+            }
+
+            let visibleRowCount = 0;
+            const rows = activeListBody.getElementsByTagName('tr');
+
+            for (const row of rows) {
+                const rowText = row.textContent.toLowerCase();
+                if (rowText.includes(searchTerm)) {
+                    row.style.display = ""; // Show row
+                    visibleRowCount++;
+                } else {
+                    row.style.display = "none"; // Hide row
+                }
+            }
+
+            // Toggle the "no search results" message
+            if (visibleRowCount === 0 && searchTerm !== "") {
+                activeNoResultsMsg.classList.remove('hidden');
+            } else {
+                activeNoResultsMsg.classList.add('hidden');
+            }
+        }
+
+        // --- Helper function to populate a table ---
+        function populateTable(parts, listBody, tableContainer, noPartsMessage) {
+            listBody.innerHTML = ''; // Clear previous entries
+            if (parts && parts.length > 0) {
+                parts.forEach(part => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${part.item_no || 'N/A'}</td>
+                        <td>${part.description || 'N/A'}</td>
+                        <td>${part.sifra_regala || 'N/A'}</td>
+                        <td>${part.quantity_needed || 'N/A'}</td>
+                    `;
+                    listBody.appendChild(row);
+                });
+                tableContainer.classList.remove('hidden');
+                noPartsMessage.classList.add('hidden');
+            } else {
+                tableContainer.classList.add('hidden');
+                noPartsMessage.classList.remove('hidden');
+            }
+        }
+
+        // --- Function to load MISSING parts ---
+        async function loadMissingParts(projectId) {
+            const loading = document.getElementById('loading-state-missing');
+            const error = document.getElementById('error-state-missing');
+            const tableContainer = document.getElementById('parts-table-container-missing');
+            const listBody = document.getElementById('parts-list-missing');
+            const noParts = document.getElementById('no-parts-message-missing');
+
+            try {
+                const response = await fetch(`/api/project/${projectId}/detailed_missing_parts`);
+                if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+                const parts = await response.json();
+                
+                loading.classList.add('hidden');
+                populateTable(parts, listBody, tableContainer, noParts);
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                error.textContent = `Failed to load missing parts: ${err.message}`;
+                error.classList.remove('hidden');
+            }
+        }
+
+        // --- Function to load ARRIVED parts ---
+        async function loadArrivedParts(projectId) {
+            const loading = document.getElementById('loading-state-arrived');
+            const error = document.getElementById('error-state-arrived');
+            const tableContainer = document.getElementById('parts-table-container-arrived');
+            const listBody = document.getElementById('parts-list-arrived');
+            const noParts = document.getElementById('no-parts-message-arrived');
+
+            try {
+                const response = await fetch(`/api/project/${projectId}/detailed_arrived_parts`);
+                if (!response.ok) throw new Error(`Server responded with ${response.status}`);
+                const parts = await response.json();
+                
+                loading.classList.add('hidden');
+                populateTable(parts, listBody, tableContainer, noParts);
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                error.textContent = `Failed to load arrived parts: ${err.message}`;
+                error.classList.remove('hidden');
+            }
+        }
+
+        // --- Main document load event ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            const projectIdElement = document.getElementById('project-id');
+            const pathSegments = window.location.pathname.split('/');
+            const projectId = pathSegments[pathSegments.length - 1];
+
+            if (!projectId) {
+                projectIdElement.textContent = 'Error: No Project ID';
+                document.getElementById('loading-state-missing').classList.add('hidden');
+                document.getElementById('error-state-missing').textContent = 'Could not determine Project ID from URL.';
+                document.getElementById('error-state-missing').classList.remove('hidden');
+                return;
+            }
+
+            projectIdElement.textContent = projectId;
+
+            // --- NEW: Search Bar Event Listener ---
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', filterActiveTable);
+
+            // --- Tab Switching Logic ---
+            const missingTab = document.getElementById('missing-tab');
+            const arrivedTab = document.getElementById('arrived-tab');
+            const missingContent = document.getElementById('missing-parts-content');
+            const arrivedContent = document.getElementById('arrived-parts-content');
+
+            missingTab.addEventListener('click', () => {
+                missingTab.classList.add('active-tab');
+                missingTab.classList.remove('inactive-tab');
+                arrivedTab.classList.add('inactive-tab');
+                arrivedTab.classList.remove('active-tab');
+
+                missingContent.classList.remove('hidden');
+                arrivedContent.classList.add('hidden');
+                filterActiveTable(); // Re-apply filter to new active tab
+            });
+
+            arrivedTab.addEventListener('click', () => {
+                arrivedTab.classList.add('active-tab');
+                arrivedTab.classList.remove('inactive-tab');
+                missingTab.classList.add('inactive-tab');
+                missingTab.classList.remove('active-tab');
+
+                arrivedContent.classList.remove('hidden');
+                missingContent.classList.add('hidden');
+                filterActiveTable(); // Re-apply filter to new active tab
+            });
+
+            // --- Load data for both tabs ---
+            loadMissingParts(projectId);
+            loadArrivedParts(projectId);
+        });
+    </script>
+
+</body>
+</html>

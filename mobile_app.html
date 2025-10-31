@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Factory Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="stylesheet" href="/css/style.css">
+
+</head>
+<body class="bg-gray-800 text-gray-200 m-0 p-0 h-screen w-screen overflow-hidden flex flex-col">
+
+    <div id="login-modal" class="fixed inset-0 bg-gray-900 z-[200] flex items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-sm border border-gray-700 p-8 space-y-6">
+            <h2 class="text-2xl font-bold text-center text-blue-400">Login</h2>
+            <div>
+                <label for="username" class="block text-sm font-medium mb-1">Username</label>
+                <input type="text" id="username" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md py-2 px-3 focus:ring-blue-500 focus:border-blue-500" value="Blaz">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium mb-1">Password</label>
+                <input type="password" id="password" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md py-2 px-3 focus:ring-blue-500 focus:border-blue-500" value="Blaz">
+            </div>
+            <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg transition-colors">Log In</button>
+            <p id="login-error" class="text-red-500 text-sm text-center h-4"></p>
+        </div>
+    </div>
+
+    <main class="flex-grow overflow-hidden relative hidden">
+        <input type="file" id="photo-upload-input" accept="image/*" capture="environment" class="hidden">
+        <div id="layout-view" class="h-full w-full">
+            <div id="canvas-wrapper" class="w-full h-full relative bg-gray-700">
+                <canvas id="layout-canvas"></canvas>
+                <div id="overlay-container" class="absolute inset-0 pointer-events-none z-1"></div>
+                <div class="absolute top-4 left-4 flex items-center space-x-2 z-10 bg-gray-900/70 backdrop-blur-sm p-1.5 rounded-lg shadow-lg">
+                    <input type="text" id="search-input" placeholder="Find project..." class="bg-gray-700 text-white border border-gray-600 rounded-md py-1 px-2 text-sm focus:ring-blue-500 focus:border-blue-500 w-40">
+                    <button id="search-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2.5 rounded-md text-sm">Find</button>
+                    <button id="my-projects-btn" title="My Projects" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-1 px-2.5 rounded-md text-sm">👤</button>
+                </div>
+                <div class="absolute bottom-4 left-4 bg-gray-900/70 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-lg text-xs z-10">
+                    Status: <span id="status-text">Loading...</span>
+                </div>
+                <div class="absolute top-4 right-4 flex items-start space-x-2 z-10">
+                    <div class="flex flex-col items-center space-y-1 bg-gray-900/70 backdrop-blur-sm p-1 rounded-lg shadow-lg">
+                        <button id="add-project-btn" class="px-2 py-0.5 text-lg font-bold hover:bg-gray-700 rounded-md w-8 h-8 hidden">+</button>
+                        <button id="remove-project-btn" class="px-2 py-0.5 text-lg font-bold hover:bg-gray-700 rounded-md w-8 h-8 hidden">-</button>
+                        <button id="move-project-btn" class="px-2 py-0.5 text-lg font-bold hover:bg-gray-700 rounded-md w-8 h-8 hidden">M</button>
+                        <button id="zoom-in-btn" class="px-2 py-0.5 text-xl font-bold hover:bg-gray-700 rounded-md w-8 h-8">+</button>
+                        <span id="zoom-level" class="px-2 text-xs w-12 text-center">100%</span>
+                        <button id="zoom-out-btn" class="px-2 py-0.5 text-xl font-bold hover:bg-gray-700 rounded-md w-8 h-8">-</button>
+                    </div>
+                    <button id="logout-btn" title="Logout" class="bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg w-8 h-8 shadow-lg transition-colors"></button>
+                </div>
+            </div>
+             <div id="details-panel" class="absolute top-0 right-0 h-full w-full sm:w-96 bg-gray-900 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out z-40 overflow-y-auto">
+                <div class="p-3 border-b border-gray-700 flex justify-between items-center flex-shrink-0">
+                    <h2 id="panel-title" class="text-lg font-bold text-indigo-400 truncate">Details</h2>
+                    <button id="panel-close-btn" class="text-2xl text-gray-500 hover:text-white">&times;</button>
+                </div>
+                <div id="panel-footer" class="p-4 border-b border-gray-700 flex-shrink-0 hidden"></div>
+                <div id="panel-content" class="p-4"></div>
+            </div>
+        </div>
+    </main>
+    
+    <div id="image-viewer-modal" class="fixed inset-0 bg-black bg-opacity-80 z-[250] hidden items-center justify-center p-4">
+        <img id="fullscreen-image" src="" class="max-w-full max-h-full">
+        <button id="image-viewer-close" class="absolute top-4 right-4 text-white text-4xl">&times;</button>
+    </div>
+
+    <div id="select-project-modal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-gray-700">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-blue-400">Select Project to Add</h2>
+                <button id="select-modal-close-btn" class="text-2xl text-gray-500 hover:text-white">&times;</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label for="select-project-dropdown" class="block text-sm font-medium mb-2">Available Projects:</label>
+                    <select id="select-project-dropdown" class="w-full bg-gray-700 text-white border border-gray-600 rounded-md py-2 px-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                        <option>Loading...</option>
+                    </select>
+                </div>
+                <button id="select-modal-add-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Add Project to Layout</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="my-projects-modal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-md border border-gray-700 max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="text-xl font-bold text-blue-400">My Projects</h2>
+                <button id="my-projects-modal-close-btn" class="text-2xl text-gray-500 hover:text-white">&times;</button>
+            </div>
+            <div id="my-projects-list-container" class="p-6 space-y-4 overflow-y-auto">
+                <p class="text-gray-400">Loading projects...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
